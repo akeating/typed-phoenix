@@ -16,7 +16,7 @@ phoenixframework does not come with typescript definitions which is a minor pain
 ### You can just use the definition ###
 ```
 npm install --save-exact phoenix@1.2.0
-typings install --save github:akeating/typed-phoenix#21741fece680122275172c87d22d6cff84a5f188
+typings install --save github:akeating/typed-phoenix#e5a102af931a58811abaa8e03fcbb9cdf83f056b
 ```
 Modify your imports to read, e.g.
 ```
@@ -27,14 +27,14 @@ import { Socket, SocketOptions, Channel } from 'phoenix';
 ### -or- use the Typescript version in this repo ###
 ```
 npm uninstall phoenix
-npm install --save github:akeating/typed-phoenix#21741fece680122275172c87d22d6cff84a5f188
+npm install --save github:akeating/typed-phoenix#e5a102af931a58811abaa8e03fcbb9cdf83f056b
 ```
 Modify your imports to read, e.g.
 ```
 import { Socket, SocketOptions, Channel } from 'typed-phoenix';
 ```
 
-## How the defintion was generated (I could get more sophisticated, but) ##
+## How the javascript and definition were generated (I could get more sophisticated, but) ##
 ```
 tsc lib/phoenix.ts -d --noImplicitAny --noImplicitReturns --watch
 ```
