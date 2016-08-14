@@ -30,16 +30,16 @@ declare namespace phoenix {
         callback: (payload?: any, ref?: string) => void;
     }
     class Channel {
-        state: string;
-        topic: string;
-        params: Object;
+        private state;
+        private params;
+        private bindings;
+        private timeout;
+        private joinedOnce;
+        private joinPush;
+        private pushBuffer;
+        private rejoinTimer;
         socket: Socket;
-        bindings: ChannelBinding[];
-        timeout: number;
-        joinedOnce: boolean;
-        joinPush: Push;
-        pushBuffer: any[];
-        rejoinTimer: Timer;
+        topic: string;
         constructor(topic: string, params: Object, socket: Socket);
         rejoinUntilConnected(): void;
         join(timeout?: number): Push;
@@ -73,26 +73,21 @@ declare namespace phoenix {
         params?: any;
     }
     class Socket {
-        stateChangeCallbacks: {
-            open: any[];
-            close: any[];
-            error: any[];
-            message: any[];
-        };
-        channels: Channel[];
-        sendBuffer: any[];
-        ref: number;
+        private stateChangeCallbacks;
+        private channels;
+        private sendBuffer;
+        private ref;
+        private transport;
+        private heartbeatTimer;
+        private heartbeatIntervalMs;
+        private logger;
+        private longpollerTimeout;
+        private params;
+        private endPoint;
+        private reconnectTimer;
+        private conn;
         timeout: number;
-        transport: any;
-        heartbeatTimer: number;
-        heartbeatIntervalMs: number;
         reconnectAfterMs: (tries: number) => number;
-        logger: any;
-        longpollerTimeout: number;
-        params: any;
-        endPoint: string;
-        reconnectTimer: Timer;
-        conn: any;
         constructor(endPoint: string, opts: SocketOptions);
         protocol(): string;
         endPointURL(): string;
@@ -125,18 +120,16 @@ declare namespace phoenix {
         }): void;
     }
     class LongPoll {
-        endPoint: string;
-        pollEndpoint: string;
-        token: string;
-        skipHeartbeat: boolean;
-        onopen: () => void;
-        onerror: (reason?: string) => void;
-        onmessage: (message: {
-            data: string;
-        }) => void;
-        onclose: () => void;
-        readyState: number;
-        timeout: number;
+        private endPoint;
+        private pollEndpoint;
+        private token;
+        private skipHeartbeat;
+        private onopen;
+        private onerror;
+        private onmessage;
+        private onclose;
+        private readyState;
+        private timeout;
         constructor(endPoint: string);
         normalizeEndpoint(endPoint: string): string;
         endpointURL(): string;

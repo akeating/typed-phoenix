@@ -131,16 +131,17 @@ namespace phoenix {
   };
 
   export class Channel {
-    state: string = CHANNEL_STATES.closed;
-    topic: string;
-    params: Object;
-    socket: Socket;
-    bindings: ChannelBinding[] = [];
-    timeout: number;
-    joinedOnce: boolean = false;
-    joinPush: Push;
-    pushBuffer: any[] = [];
-    rejoinTimer: Timer;
+    private state: string = CHANNEL_STATES.closed;
+    private params: Object;
+    private bindings: ChannelBinding[] = [];
+    private timeout: number;
+    private joinedOnce: boolean = false;
+    private joinPush: Push;
+    private pushBuffer: any[] = [];
+    private rejoinTimer: Timer;
+
+    public socket: Socket;
+    public topic: string;
 
     constructor(topic: string, params: Object, socket: Socket) {
       this.topic       = topic;
@@ -335,21 +336,22 @@ namespace phoenix {
 
   export class Socket {
 
-    stateChangeCallbacks: {open: any[], close: any[], error: any[], message: any[]} = {open: [], close: [], error: [], message: []};
-    channels: Channel[] = [];
-    sendBuffer: any[] = [];
-    ref: number = 0;
-    timeout: number;
-    transport: any;
-    heartbeatTimer: number;
-    heartbeatIntervalMs: number;
-    reconnectAfterMs: (tries: number) => number;
-    logger: any;
-    longpollerTimeout: number;
-    params: any;
-    endPoint: string;
-    reconnectTimer: Timer;
-    conn: any; // new transport();
+    private stateChangeCallbacks: {open: any[], close: any[], error: any[], message: any[]} = {open: [], close: [], error: [], message: []};
+    private channels: Channel[] = [];
+    private sendBuffer: any[] = [];
+    private ref: number = 0;
+    private transport: any;
+    private heartbeatTimer: number;
+    private heartbeatIntervalMs: number;
+    private logger: any;
+    private longpollerTimeout: number;
+    private params: any;
+    private endPoint: string;
+    private reconnectTimer: Timer;
+    private conn: any; // new transport();
+
+    public timeout: number;
+    public reconnectAfterMs: (tries: number) => number;
 
     // Initializes the Socket
     //
@@ -543,16 +545,16 @@ namespace phoenix {
 
 
   export class LongPoll {
-    endPoint: string = null;
-    pollEndpoint: string;
-    token: string = null;
-    skipHeartbeat: boolean = true;
-    onopen: () => void = function() {}; // noop
-    onerror: (reason?: string) => void = function() {}; // noop
-    onmessage: (message: { data: string }) => void = function() {}; // noop
-    onclose: () => void = function() {}; // noop
-    readyState: number = SOCKET_STATES.connecting;
-    timeout: number;
+    private endPoint: string = null;
+    private pollEndpoint: string;
+    private token: string = null;
+    private skipHeartbeat: boolean = true;
+    private onopen: () => void = function() {}; // noop
+    private onerror: (reason?: string) => void = function() {}; // noop
+    private onmessage: (message: { data: string }) => void = function() {}; // noop
+    private onclose: () => void = function() {}; // noop
+    private readyState: number = SOCKET_STATES.connecting;
+    private timeout: number;
 
     constructor(endPoint: string) {
       this.pollEndpoint    = this.normalizeEndpoint(endPoint);
