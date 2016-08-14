@@ -27,16 +27,17 @@ namespace phoenix {
 
   export class Push {
 
-    channel: Channel;
-    event: string;
-    payload: any;
-    receivedResp: any = null;
-    timeout: number;
-    timeoutTimer: number = null;
-    recHooks: any[] = [];
-    sent: boolean = false;
-    ref: any;
-    refEvent: any;
+    private channel: Channel;
+    private event: string;
+    private payload: any;
+    private receivedResp: any = null;
+    private timeoutTimer: number = null;
+    private recHooks: any[] = [];
+    private sent: boolean = false;
+    private refEvent: string;
+
+    public ref: string;
+    public timeout: number;
 
     // Initializes the Push
     //
@@ -45,24 +46,24 @@ namespace phoenix {
     // payload - The payload, for example `{user_id: 123}`
     // timeout - The push timeout in milliseconds
     //
-    constructor(channel: Channel, event, payload, timeout) {
+    constructor(channel: Channel, event: string, payload: any, timeout: number) {
       this.channel      = channel;
       this.event        = event;
       this.payload      = payload || {};
       this.timeout      = timeout;
     }
 
-    resend(timeout) {
+    resend(timeout: number): void {
       this.timeout = timeout;
       this.cancelRefEvent();
-      this.ref          = null;
-      this.refEvent     = null;
+      this.ref = null;
+      this.refEvent = null;
       this.receivedResp = null;
-      this.sent         = false;
+      this.sent = false;
       this.send();
     }
 
-    send() { if (this.hasReceived("timeout")) { return; }
+    send(): void { if (this.hasReceived("timeout")) { return; }
       this.startTimeout();
       this.sent = true;
       this.channel.socket.push({
@@ -73,7 +74,7 @@ namespace phoenix {
       });
     }
 
-    receive(status, callback) {
+    receive(status: string, callback: (response?: any) => void): Push {
       if (this.hasReceived(status)) {
         callback(this.receivedResp.response);
       }
@@ -85,25 +86,25 @@ namespace phoenix {
 
     // private
 
-    matchReceive({status, response, ref}) {
+    matchReceive({status, response, ref}): void {
       this.recHooks.filter( h => h.status === status )
                    .forEach( h => h.callback(response) );
     }
 
-    cancelRefEvent() { if (!this.refEvent) { return; }
+    cancelRefEvent(): void { if (!this.refEvent) { return; }
       this.channel.off(this.refEvent);
     }
 
-    cancelTimeout() {
+    cancelTimeout(): void {
       clearTimeout(this.timeoutTimer);
       this.timeoutTimer = null;
     }
 
-    startTimeout() { if (this.timeoutTimer) { return; }
+    startTimeout(): void { if (this.timeoutTimer) { return; }
       this.ref      = this.channel.socket.makeRef();
       this.refEvent = this.channel.replyEventName(this.ref);
 
-      this.channel.on(this.refEvent, payload => {
+      this.channel.on(this.refEvent, (payload: any) => {
         this.cancelRefEvent();
         this.cancelTimeout();
         this.receivedResp = payload;
@@ -115,28 +116,33 @@ namespace phoenix {
       }, this.timeout);
     }
 
-    hasReceived(status) {
+    hasReceived(status: string): boolean {
       return this.receivedResp && this.receivedResp.status === status;
     }
 
-    trigger(status, response) {
+    trigger(status: string, response: any): void {
       this.channel.trigger(this.refEvent, {status, response});
     }
   }
+
+  export interface ChannelBinding {
+    event: string,
+    callback: (payload?: any, ref?: string) => void
+  };
 
   export class Channel {
     state: string = CHANNEL_STATES.closed;
     topic: string;
     params: Object;
     socket: Socket;
-    bindings: { event: string, callback: (payload?, ref?) => void } [] = [];
+    bindings: ChannelBinding[] = [];
     timeout: number;
     joinedOnce: boolean = false;
     joinPush: Push;
     pushBuffer: any[] = [];
     rejoinTimer: Timer;
 
-    constructor(topic, params, socket) {
+    constructor(topic: string, params: Object, socket: Socket) {
       this.topic       = topic;
       this.params      = params || {};
       this.socket      = socket;
@@ -174,19 +180,19 @@ namespace phoenix {
         this.state = CHANNEL_STATES.errored;
         this.rejoinTimer.scheduleTimeout();
       });
-      this.on(CHANNEL_EVENTS.reply, (payload, ref) => {
+      this.on(CHANNEL_EVENTS.reply, (payload: any, ref: string) => {
         this.trigger(this.replyEventName(ref), payload);
       });
     }
 
-    rejoinUntilConnected() {
+    rejoinUntilConnected(): void {
       this.rejoinTimer.scheduleTimeout();
       if (this.socket.isConnected()) {
         this.rejoin();
       }
     }
 
-    join(timeout = this.timeout) {
+    join(timeout: number = this.timeout): Push {
       if (this.joinedOnce) {
         throw(`tried to join multiple times. 'join' can only be called a single time per channel instance`);
       } else {
@@ -196,27 +202,27 @@ namespace phoenix {
       }
     }
 
-    onClose(callback) {
+    onClose(callback: () => void): void {
       this.on(CHANNEL_EVENTS.close, callback);
     }
 
-    onError(callback) {
-      this.on(CHANNEL_EVENTS.error, reason => callback(reason) );
+    onError(callback: (reason: string) => void) {
+      this.on(CHANNEL_EVENTS.error, (reason: string) => callback(reason) );
     }
 
-    on(event, callback) {
+    on(event: string, callback: (payload?: any, ref?: string) => void): void {
       this.bindings.push({event, callback});
     }
 
-    off(event) {
-      this.bindings = this.bindings.filter( bind => bind.event !== event );
+    off(event: string): void {
+      this.bindings = this.bindings.filter( (bind: ChannelBinding) => bind.event !== event );
     }
 
-    canPush() {
+    canPush(): boolean {
       return this.socket.isConnected() && this.isJoined();
     }
 
-    push(event, payload, timeout = this.timeout) {
+    push(event: string, payload: any, timeout: number = this.timeout): Push {
       if (!this.joinedOnce) {
         throw(`tried to push '${event}' to '${this.topic}' before joining. Use channel.join() before pushing events`);
       }
@@ -243,7 +249,7 @@ namespace phoenix {
     //
     //     channel.leave().receive("ok", () => alert("left!") )
     //
-    leave(timeout = this.timeout) {
+    leave(timeout: number = this.timeout): Push {
       this.state = CHANNEL_STATES.leaving;
       let onClose = () => {
         this.socket.log("channel", `leave ${this.topic}`);
@@ -266,33 +272,33 @@ namespace phoenix {
     // before dispatching to the channel callbacks.
     //
     // Must return the payload, modified or unmodified
-    onMessage(event, payload, ref) {
+    onMessage(event: string, payload: any, ref: string): any {
       return payload;
     }
 
     // private
 
-    isMember(topic) {
+    isMember(topic: string): boolean {
       return this.topic === topic;
     }
 
-    joinRef() {
+    joinRef(): string {
       return this.joinPush.ref;
     }
 
-    sendJoin(timeout) {
+    sendJoin(timeout: number): void {
       this.state = CHANNEL_STATES.joining;
       this.joinPush.resend(timeout);
     }
 
-    rejoin(timeout = this.timeout) {
+    rejoin(timeout: number = this.timeout): void {
       if (this.isLeaving()) {
         return;
       }
       this.sendJoin(timeout);
     }
 
-    trigger(event, payload?, ref = null) {
+    trigger(event: string, payload?: any, ref: string = null) {
       let {close, error, leave, join} = CHANNEL_EVENTS;
       if (ref && [close, error, leave, join].indexOf(event) >= 0 && ref !== this.joinRef()) {
         return;
@@ -306,22 +312,22 @@ namespace phoenix {
                    .map( bind => bind.callback(handledPayload, ref));
     }
 
-    replyEventName(ref) {
+    replyEventName(ref: string): string {
       return `chan_reply_${ref}`;
     }
 
-    isClosed() { return this.state === CHANNEL_STATES.closed; }
-    isErrored() { return this.state === CHANNEL_STATES.errored; }
-    isJoined() { return this.state === CHANNEL_STATES.joined; }
-    isJoining() { return this.state === CHANNEL_STATES.joining; }
-    isLeaving() { return this.state === CHANNEL_STATES.leaving; }
+    isClosed(): boolean { return this.state === CHANNEL_STATES.closed; }
+    isErrored(): boolean { return this.state === CHANNEL_STATES.errored; }
+    isJoined(): boolean { return this.state === CHANNEL_STATES.joined; }
+    isJoining(): boolean { return this.state === CHANNEL_STATES.joining; }
+    isLeaving(): boolean { return this.state === CHANNEL_STATES.leaving; }
   }
 
   export interface SocketOptions {
     timeout?: number;
     transport?: any;
     heartbeatIntervalMs?: number;
-    reconnectAfterMs?: number;
+    reconnectAfterMs?: (tries: number) => number;
     logger?: any;
     longpollerTimeout?: number;
     params?: any;
@@ -329,7 +335,7 @@ namespace phoenix {
 
   export class Socket {
 
-    stateChangeCallbacks = {open: [], close: [], error: [], message: []};
+    stateChangeCallbacks: {open: any[], close: any[], error: any[], message: any[]} = {open: [], close: [], error: [], message: []};
     channels: Channel[] = [];
     sendBuffer: any[] = [];
     ref: number = 0;
@@ -337,7 +343,7 @@ namespace phoenix {
     transport: any;
     heartbeatTimer: number;
     heartbeatIntervalMs: number;
-    reconnectAfterMs: number | ((tries: any) => number);
+    reconnectAfterMs: (tries: number) => number;
     logger: any;
     longpollerTimeout: number;
     params: any;
@@ -373,7 +379,7 @@ namespace phoenix {
     //
     // For IE8 support use an ES5-shim (https://github.com/es-shims/es5-shim)
     //
-    constructor(endPoint, opts: SocketOptions) {
+    constructor(endPoint: string, opts: SocketOptions) {
       this.timeout              = opts.timeout || DEFAULT_TIMEOUT;
       this.transport            = opts.transport || WebSocket || LongPoll;
       this.heartbeatIntervalMs  = opts.heartbeatIntervalMs || 30000;
@@ -389,9 +395,9 @@ namespace phoenix {
       }, this.reconnectAfterMs);
     }
 
-    protocol() { return location.protocol.match(/^https/) ? "wss" : "ws"; }
+    protocol(): string { return location.protocol.match(/^https/) ? "wss" : "ws"; }
 
-    endPointURL() {
+    endPointURL(): string {
       let uri = Ajax.appendParams(
         Ajax.appendParams(this.endPoint, this.params), {vsn: VSN});
       if (uri.charAt(0) !== "/") { return uri; }
@@ -400,7 +406,7 @@ namespace phoenix {
       return `${this.protocol()}://${location.host}${uri}`;
     }
 
-    disconnect(callback?, code?, reason?) {
+    disconnect(callback?: any, code?: number, reason?: string) {
       if (this.conn) {
         this.conn.onclose = function(){}; // noop
         if (code) {
@@ -414,7 +420,7 @@ namespace phoenix {
     }
 
     // params - The params to send when connecting, for example `{user_id: userToken}`
-    connect(params?) {
+    connect(params?: any): void {
       if (params) {
         console && console.log("passing params to connect is deprecated. Instead pass :params to the Socket constructor");
         this.params = params;
@@ -424,13 +430,13 @@ namespace phoenix {
       this.conn = new this.transport(this.endPointURL());
       this.conn.timeout   = this.longpollerTimeout;
       this.conn.onopen    = () => this.onConnOpen();
-      this.conn.onerror   = error => this.onConnError(error);
-      this.conn.onmessage = event => this.onConnMessage(event);
-      this.conn.onclose   = event => this.onConnClose(event);
+      this.conn.onerror   = (error: string) => this.onConnError(error);
+      this.conn.onmessage = (event: { data: string }) => this.onConnMessage(event);
+      this.conn.onclose   = (event: string) => this.onConnClose(event);
     }
 
     // Logs the message. Override `this.logger` for specialized logging. noops by default
-    log(kind, msg, data?) { this.logger(kind, msg, data); }
+    log(kind: string, msg: string, data?: any) { this.logger(kind, msg, data); }
 
     // Registers callbacks for connection state change events
     //
@@ -438,12 +444,12 @@ namespace phoenix {
     //
     //    socket.onError(function(error){ alert("An error occurred") })
     //
-    onOpen     (callback) { this.stateChangeCallbacks.open.push(callback); }
-    onClose    (callback) { this.stateChangeCallbacks.close.push(callback); }
-    onError    (callback) { this.stateChangeCallbacks.error.push(callback); }
-    onMessage  (callback) { this.stateChangeCallbacks.message.push(callback); }
+    onOpen     (callback: any) { this.stateChangeCallbacks.open.push(callback); }
+    onClose    (callback: any) { this.stateChangeCallbacks.close.push(callback); }
+    onError    (callback: any) { this.stateChangeCallbacks.error.push(callback); }
+    onMessage  (callback: any) { this.stateChangeCallbacks.message.push(callback); }
 
-    onConnOpen() {
+    onConnOpen(): void {
       this.log("transport", `connected to ${this.endPointURL()}`);
       this.flushSendBuffer();
       this.reconnectTimer.reset();
@@ -454,7 +460,7 @@ namespace phoenix {
       this.stateChangeCallbacks.open.forEach( callback => callback() );
     }
 
-    onConnClose(event) {
+    onConnClose(event: string): void {
       this.log("transport", "close", event);
       this.triggerChanError();
       clearInterval(this.heartbeatTimer);
@@ -462,17 +468,17 @@ namespace phoenix {
       this.stateChangeCallbacks.close.forEach( callback => callback(event) );
     }
 
-    onConnError(error) {
+    onConnError(error: string): void {
       this.log("transport", error);
       this.triggerChanError();
       this.stateChangeCallbacks.error.forEach( callback => callback(error) );
     }
 
-    triggerChanError() {
+    triggerChanError(): void {
       this.channels.forEach( channel => channel.trigger(CHANNEL_EVENTS.error) );
     }
 
-    connectionState() {
+    connectionState(): string {
       switch (this.conn && this.conn.readyState) {
         case SOCKET_STATES.connecting: return "connecting";
         case SOCKET_STATES.open:       return "open";
@@ -481,19 +487,19 @@ namespace phoenix {
       }
     }
 
-    isConnected() { return this.connectionState() === "open"; }
+    isConnected(): boolean { return this.connectionState() === "open"; }
 
-    remove(channel) {
+    remove(channel: Channel): void {
       this.channels = this.channels.filter(c => c.joinRef() !== channel.joinRef());
     }
 
-    channel(topic, chanParams = {}) {
+    channel(topic: string, chanParams = {}): Channel {
       let chan = new Channel(topic, chanParams, this);
       this.channels.push(chan);
       return chan;
     }
 
-    push(data) {
+    push(data: {topic: string, event: string, payload: any, ref: string}): void {
       let {topic, event, payload, ref} = data;
       let callback = () => this.conn.send(JSON.stringify(data));
       this.log("push", `${topic} ${event} (${ref})`, payload);
@@ -506,26 +512,26 @@ namespace phoenix {
     }
 
     // Return the next message ref, accounting for overflows
-    makeRef() {
+    makeRef(): string {
       let newRef = this.ref + 1;
       if (newRef === this.ref) { this.ref = 0; } else { this.ref = newRef; }
 
       return this.ref.toString();
     }
 
-    sendHeartbeat() {
+    sendHeartbeat(): void {
       if (!this.isConnected()) { return; }
       this.push({topic: "phoenix", event: "heartbeat", payload: {}, ref: this.makeRef()});
     }
 
-    flushSendBuffer() {
+    flushSendBuffer(): void {
       if (this.isConnected() && this.sendBuffer.length > 0) {
         this.sendBuffer.forEach( callback => callback() );
         this.sendBuffer = [];
       }
     }
 
-    onConnMessage(rawMessage) {
+    onConnMessage(rawMessage: { data: string }): void {
       let msg = JSON.parse(rawMessage.data);
       let {topic, event, payload, ref} = msg;
       this.log("receive", `${payload.status || ""} ${topic} ${event} ${ref && "(" + ref + ")" || ""}`, payload);
@@ -542,39 +548,39 @@ namespace phoenix {
     token: string = null;
     skipHeartbeat: boolean = true;
     onopen: () => void = function() {}; // noop
-    onerror: (reason?) => void = function() {}; // noop
-    onmessage: (message: { data?: any }) => void = function() {}; // noop
+    onerror: (reason?: string) => void = function() {}; // noop
+    onmessage: (message: { data: string }) => void = function() {}; // noop
     onclose: () => void = function() {}; // noop
     readyState: number = SOCKET_STATES.connecting;
     timeout: number;
 
-    constructor(endPoint) {
+    constructor(endPoint: string) {
       this.pollEndpoint    = this.normalizeEndpoint(endPoint);
       this.poll();
     }
 
-    normalizeEndpoint(endPoint) {
+    normalizeEndpoint(endPoint: string): string {
       return(endPoint
         .replace("ws://", "http://")
         .replace("wss://", "https://")
         .replace(new RegExp("(.*)\/" + TRANSPORTS.websocket), "$1/" + TRANSPORTS.longpoll));
     }
 
-    endpointURL() {
+    endpointURL(): string {
       return Ajax.appendParams(this.pollEndpoint, {token: this.token});
     }
 
-    closeAndRetry() {
+    closeAndRetry(): void {
       this.close();
       this.readyState = SOCKET_STATES.connecting;
     }
 
-    ontimeout() {
+    ontimeout(): void {
       this.onerror("timeout");
       this.closeAndRetry();
     }
 
-    poll() {
+    poll(): void {
       if (!(this.readyState === SOCKET_STATES.open || this.readyState === SOCKET_STATES.connecting)) { return; }
 
       Ajax.request("GET", this.endpointURL(), "application/json", null, this.timeout, this.ontimeout.bind(this), (resp: { status: number, messages?: any[], token?: string}) => {
@@ -609,8 +615,8 @@ namespace phoenix {
       });
     }
 
-    send(body) {
-      Ajax.request("POST", this.endpointURL(), "application/json", body, this.timeout, this.onerror.bind(this, "timeout"), (resp) => {
+    send(body: any): void {
+      Ajax.request("POST", this.endpointURL(), "application/json", body, this.timeout, this.onerror.bind(this, "timeout"), (resp: { status: number }) => {
         if (!resp || resp.status !== 200) {
           this.onerror(status);
           this.closeAndRetry();
@@ -618,7 +624,7 @@ namespace phoenix {
       });
     }
 
-    close(code?, reason?) {
+    close(code?: number, reason?: string) {
       this.readyState = SOCKET_STATES.closed;
       this.onclose();
     }
@@ -629,7 +635,7 @@ namespace phoenix {
 
     static states = { complete: 4 };
 
-    static request(method, endPoint, accept, body, timeout, ontimeout, callback) {
+    static request(method: string, endPoint: string, accept: string, body: any, timeout: number, ontimeout: () => void, callback: (resp: { status: number; messages?: any[]; token?: string; }) => void) {
       if (XDomainRequest) {
         let req = new XDomainRequest(); // IE8, IE9
         this.xdomainRequest(req, method, endPoint, body, timeout, ontimeout, callback);
@@ -641,7 +647,7 @@ namespace phoenix {
       }
     }
 
-    static xdomainRequest(req, method, endPoint, body, timeout, ontimeout, callback) {
+    static xdomainRequest(req: any, method: string, endPoint: string, body: any, timeout: number, ontimeout: () => void, callback: (resp: { status: number; messages?: any[]; token?: string; }) => void) {
       req.timeout = timeout;
       req.open(method, endPoint);
       req.onload = () => {
@@ -656,7 +662,7 @@ namespace phoenix {
       req.send(body);
     }
 
-    static xhrRequest(req, method, endPoint, accept, body, timeout, ontimeout, callback) {
+    static xhrRequest(req: any, method: string, endPoint: string, accept: string, body: any, timeout: number, ontimeout: () => void, callback: (resp: { status: number; messages?: any[]; token?: string; }) => void) {
       req.timeout = timeout;
       req.open(method, endPoint, true);
       req.setRequestHeader("Content-Type", accept);
@@ -672,14 +678,14 @@ namespace phoenix {
       req.send(body);
     }
 
-    static parseJSON(resp) {
+    static parseJSON(resp: string): any {
       return (resp && resp !== "") ?
                JSON.parse(resp) :
                null;
     }
 
-    static serialize(obj, parentKey?) {
-      let queryStr = [];
+    static serialize(obj: any, parentKey?: any): string {
+      let queryStr: string[] = [];
       for (let key in obj) { if (!obj.hasOwnProperty(key)) { continue; }
         let paramKey = parentKey ? `${parentKey}[${key}]` : key;
         let paramVal = obj[key];
@@ -692,7 +698,7 @@ namespace phoenix {
       return queryStr.join("&");
     }
 
-    static appendParams(url, params) {
+    static appendParams(url: string, params: any): string {
       if (Object.keys(params).length === 0) { return url; }
 
       let prefix = url.match(/\?/) ? "&" : "?";
@@ -703,24 +709,24 @@ namespace phoenix {
 
   export class Presence {
 
-    static syncState(currentState, newState, onJoin, onLeave) {
-      let state = this.clone(currentState);
-      let joins = {};
-      let leaves = {};
+    static syncState(currentState: any, newState: any, onJoin: (key: any, currentPresence: any, newPresence: any) => void, onLeave: (key: any, currentPresence: any, leftPresence: any) => void) {
+      let state: any = this.clone(currentState);
+      let joins: any = {};
+      let leaves: any = {};
 
-      this.map(state, (key, presence) => {
+      this.map(state, (key: any, presence: any) => {
         if (!newState[key]) {
           leaves[key] = presence;
         }
       });
 
-      this.map(newState, (key, newPresence) => {
+      this.map(newState, (key: any, newPresence: any) => {
         let currentPresence = state[key];
         if (currentPresence) {
-          let newRefs = newPresence.metas.map(m => m.phx_ref);
-          let curRefs = currentPresence.metas.map(m => m.phx_ref);
-          let joinedMetas = newPresence.metas.filter(m => curRefs.indexOf(m.phx_ref) < 0);
-          let leftMetas = currentPresence.metas.filter(m => newRefs.indexOf(m.phx_ref) < 0);
+          let newRefs = newPresence.metas.map((m: any) => m.phx_ref);
+          let curRefs = currentPresence.metas.map((m: any) => m.phx_ref);
+          let joinedMetas = newPresence.metas.filter((m: any) => curRefs.indexOf(m.phx_ref) < 0);
+          let leftMetas = currentPresence.metas.filter((m: any) => newRefs.indexOf(m.phx_ref) < 0);
           if (joinedMetas.length > 0) {
             joins[key] = newPresence;
             joins[key].metas = joinedMetas;
@@ -736,12 +742,12 @@ namespace phoenix {
       return this.syncDiff(state, {joins: joins, leaves: leaves}, onJoin, onLeave);
     }
 
-    static syncDiff(currentState, {joins, leaves}, onJoin, onLeave) {
+    static syncDiff(currentState: any, {joins, leaves}, onJoin: (key: any, currentPresence: any, newPresence: any) => void, onLeave: (key: any, currentPresence: any, leftPresence: any) => void) {
       let state = this.clone(currentState);
       if (!onJoin) { onJoin = function(){}; }
       if (!onLeave) { onLeave = function(){}; }
 
-      this.map(joins, (key, newPresence) => {
+      this.map(joins, (key: any, newPresence: any) => {
         let currentPresence = state[key];
         state[key] = newPresence;
         if (currentPresence) {
@@ -749,11 +755,11 @@ namespace phoenix {
         }
         onJoin(key, currentPresence, newPresence);
       });
-      this.map(leaves, (key, leftPresence) => {
+      this.map(leaves, (key: any, leftPresence: any) => {
         let currentPresence = state[key];
         if (!currentPresence) { return; }
-        let refsToRemove = leftPresence.metas.map(m => m.phx_ref);
-        currentPresence.metas = currentPresence.metas.filter(p => {
+        let refsToRemove = leftPresence.metas.map((m: any) => m.phx_ref);
+        currentPresence.metas = currentPresence.metas.filter((p: any) => {
           return refsToRemove.indexOf(p.phx_ref) < 0;
         });
         onLeave(key, currentPresence, leftPresence);
@@ -764,21 +770,21 @@ namespace phoenix {
       return state;
     }
 
-    static list(presences, chooser) {
+    static list(presences: any[], chooser: (key: any, pres: any) => any) {
       if (!chooser) { chooser = function(key, pres){ return pres; }; }
 
-      return this.map(presences, (key, presence) => {
+      return this.map(presences, (key: any, presence: any) => {
         return chooser(key, presence);
       });
     }
 
     // private
 
-    static map(obj, func) {
+    static map(obj: any, func: (key: any, value: any) => void) {
       return Object.getOwnPropertyNames(obj).map(key => func(key, obj[key]));
     }
 
-    static clone(obj) { return JSON.parse(JSON.stringify(obj)); }
+    static clone(obj: any) { return JSON.parse(JSON.stringify(obj)); }
   };
 
 
@@ -796,23 +802,19 @@ namespace phoenix {
   //    reconnectTimer.scheduleTimeout() // fires after 1000
   //
   export class Timer {
-    callback: any;
-    timerCalc: any;
-    timer: any = null;
-    tries: number = 0;
+    private timer: any = null;
+    private tries: number = 0;
 
-    constructor(callback, timerCalc) {
-      this.callback  = callback;
-      this.timerCalc = timerCalc;
+    constructor(private callback: () => void, private timerCalc: (tries: number) => number) {
     }
 
-    reset() {
+    reset(): void {
       this.tries = 0;
       clearTimeout(this.timer);
     }
 
     // Cancels any previous scheduleTimeout and schedules callback
-    scheduleTimeout() {
+    scheduleTimeout(): void {
       clearTimeout(this.timer);
 
       this.timer = setTimeout(() => {
