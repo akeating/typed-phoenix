@@ -1,6 +1,6 @@
 {
   "name": "phoenix",
-  "main": "lib/phoenix.d.ts",
+  "main": "index.d.ts",
   "homepage": "https://github.com/phoenixframework/phoenix",
   "version": "1.2.0"
 }
