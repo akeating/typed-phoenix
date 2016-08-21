@@ -27,17 +27,17 @@ namespace phoenix {
 
   export class Push {
 
-    private channel: Channel;
-    private event: string;
-    private payload: any;
-    private receivedResp: any = null;
-    private timeoutTimer: number = null;
-    private recHooks: any[] = [];
-    private sent: boolean = false;
-    private refEvent: string;
+    channel: Channel;
+    event: string;
+    payload: any;
+    receivedResp: any = null;
+    timeoutTimer: number = null;
+    recHooks: any[] = [];
+    sent: boolean = false;
+    refEvent: string;
 
-    public ref: string;
-    public timeout: number;
+    ref: string;
+    timeout: number;
 
     // Initializes the Push
     //
@@ -131,17 +131,17 @@ namespace phoenix {
   };
 
   export class Channel {
-    private state: string = CHANNEL_STATES.closed;
-    private params: Object;
-    private bindings: ChannelBinding[] = [];
-    private timeout: number;
-    private joinedOnce: boolean = false;
-    private joinPush: Push;
-    private pushBuffer: any[] = [];
-    private rejoinTimer: Timer;
+    state: string = CHANNEL_STATES.closed;
+    params: Object;
+    bindings: ChannelBinding[] = [];
+    timeout: number;
+    joinedOnce: boolean = false;
+    joinPush: Push;
+    pushBuffer: any[] = [];
+    rejoinTimer: Timer;
 
-    public socket: Socket;
-    public topic: string;
+    socket: Socket;
+    topic: string;
 
     constructor(topic: string, params: Object, socket: Socket) {
       this.topic       = topic;
@@ -336,22 +336,22 @@ namespace phoenix {
 
   export class Socket {
 
-    private stateChangeCallbacks: {open: any[], close: any[], error: any[], message: any[]} = {open: [], close: [], error: [], message: []};
-    private channels: Channel[] = [];
-    private sendBuffer: any[] = [];
-    private ref: number = 0;
-    private transport: any;
-    private heartbeatTimer: number;
-    private heartbeatIntervalMs: number;
-    private logger: any;
-    private longpollerTimeout: number;
-    private params: any;
-    private endPoint: string;
-    private reconnectTimer: Timer;
-    private conn: any; // new transport();
+    stateChangeCallbacks: {open: any[], close: any[], error: any[], message: any[]} = {open: [], close: [], error: [], message: []};
+    channels: Channel[] = [];
+    sendBuffer: any[] = [];
+    ref: number = 0;
+    transport: any;
+    heartbeatTimer: number;
+    heartbeatIntervalMs: number;
+    logger: any;
+    longpollerTimeout: number;
+    params: any;
+    endPoint: string;
+    reconnectTimer: Timer;
+    conn: any; // new transport();
 
-    public timeout: number;
-    public reconnectAfterMs: (tries: number) => number;
+    timeout: number;
+    reconnectAfterMs: (tries: number) => number;
 
     // Initializes the Socket
     //
@@ -545,16 +545,16 @@ namespace phoenix {
 
 
   export class LongPoll {
-    private endPoint: string = null;
-    private pollEndpoint: string;
-    private token: string = null;
-    private skipHeartbeat: boolean = true;
-    private onopen: () => void = function() {}; // noop
-    private onerror: (reason?: string) => void = function() {}; // noop
-    private onmessage: (message: { data: string }) => void = function() {}; // noop
-    private onclose: () => void = function() {}; // noop
-    private readyState: number = SOCKET_STATES.connecting;
-    private timeout: number;
+    endPoint: string = null;
+    pollEndpoint: string;
+    token: string = null;
+    skipHeartbeat: boolean = true;
+    onopen: () => void = function() {}; // noop
+    onerror: (reason?: string) => void = function() {}; // noop
+    onmessage: (message: { data: string }) => void = function() {}; // noop
+    onclose: () => void = function() {}; // noop
+    readyState: number = SOCKET_STATES.connecting;
+    timeout: number;
 
     constructor(endPoint: string) {
       this.pollEndpoint    = this.normalizeEndpoint(endPoint);
@@ -804,10 +804,14 @@ namespace phoenix {
   //    reconnectTimer.scheduleTimeout() // fires after 1000
   //
   export class Timer {
-    private timer: any = null;
-    private tries: number = 0;
+    timer: any = null;
+    tries: number = 0;
+    callback: () => void;
+    timerCalc: (tries: number) => number;
 
-    constructor(private callback: () => void, private timerCalc: (tries: number) => number) {
+    constructor(callback: () => void, timerCalc: (tries: number) => number) {
+      this.callback = callback;
+      this.timerCalc = timerCalc;
     }
 
     reset(): void {

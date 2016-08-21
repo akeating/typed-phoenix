@@ -1,13 +1,13 @@
 declare namespace phoenix {
     class Push {
-        private channel;
-        private event;
-        private payload;
-        private receivedResp;
-        private timeoutTimer;
-        private recHooks;
-        private sent;
-        private refEvent;
+        channel: Channel;
+        event: string;
+        payload: any;
+        receivedResp: any;
+        timeoutTimer: number;
+        recHooks: any[];
+        sent: boolean;
+        refEvent: string;
         ref: string;
         timeout: number;
         constructor(channel: Channel, event: string, payload: any, timeout: number);
@@ -30,14 +30,14 @@ declare namespace phoenix {
         callback: (payload?: any, ref?: string) => void;
     }
     class Channel {
-        private state;
-        private params;
-        private bindings;
-        private timeout;
-        private joinedOnce;
-        private joinPush;
-        private pushBuffer;
-        private rejoinTimer;
+        state: string;
+        params: Object;
+        bindings: ChannelBinding[];
+        timeout: number;
+        joinedOnce: boolean;
+        joinPush: Push;
+        pushBuffer: any[];
+        rejoinTimer: Timer;
         socket: Socket;
         topic: string;
         constructor(topic: string, params: Object, socket: Socket);
@@ -73,19 +73,24 @@ declare namespace phoenix {
         params?: any;
     }
     class Socket {
-        private stateChangeCallbacks;
-        private channels;
-        private sendBuffer;
-        private ref;
-        private transport;
-        private heartbeatTimer;
-        private heartbeatIntervalMs;
-        private logger;
-        private longpollerTimeout;
-        private params;
-        private endPoint;
-        private reconnectTimer;
-        private conn;
+        stateChangeCallbacks: {
+            open: any[];
+            close: any[];
+            error: any[];
+            message: any[];
+        };
+        channels: Channel[];
+        sendBuffer: any[];
+        ref: number;
+        transport: any;
+        heartbeatTimer: number;
+        heartbeatIntervalMs: number;
+        logger: any;
+        longpollerTimeout: number;
+        params: any;
+        endPoint: string;
+        reconnectTimer: Timer;
+        conn: any;
         timeout: number;
         reconnectAfterMs: (tries: number) => number;
         constructor(endPoint: string, opts: SocketOptions);
@@ -120,16 +125,18 @@ declare namespace phoenix {
         }): void;
     }
     class LongPoll {
-        private endPoint;
-        private pollEndpoint;
-        private token;
-        private skipHeartbeat;
-        private onopen;
-        private onerror;
-        private onmessage;
-        private onclose;
-        private readyState;
-        private timeout;
+        endPoint: string;
+        pollEndpoint: string;
+        token: string;
+        skipHeartbeat: boolean;
+        onopen: () => void;
+        onerror: (reason?: string) => void;
+        onmessage: (message: {
+            data: string;
+        }) => void;
+        onclose: () => void;
+        readyState: number;
+        timeout: number;
         constructor(endPoint: string);
         normalizeEndpoint(endPoint: string): string;
         endpointURL(): string;
@@ -150,10 +157,10 @@ declare namespace phoenix {
         static clone(obj: any): any;
     }
     class Timer {
-        private callback;
-        private timerCalc;
-        private timer;
-        private tries;
+        timer: any;
+        tries: number;
+        callback: () => void;
+        timerCalc: (tries: number) => number;
         constructor(callback: () => void, timerCalc: (tries: number) => number);
         reset(): void;
         scheduleTimeout(): void;
